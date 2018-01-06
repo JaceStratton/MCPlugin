@@ -200,7 +200,7 @@ public class JacesPlugin extends JavaPlugin {
         }
         if (page == 2) {
             player.sendMessage(ChatColor.GOLD + "Rules (Page 2/2): " + ChatColor.WHITE + "Lag Sources\n" +
-                    ChatColor.GOLD + "1 " + ChatColor.WHITE + "- Loading more than 200 entities at a time.\n" +
+                    ChatColor.GOLD + "1 " + ChatColor.WHITE + "- One player loading more than 300 entities at a time.\n" +
                     ChatColor.GOLD + "2 " + ChatColor.WHITE + "- Many hoppers - hopper minecart tracks cause less load.\n" +
                     ChatColor.GOLD + "3 " + ChatColor.WHITE + "- Auto mob farms with water dispensers on redstone clocks.\n" +
                     ChatColor.GOLD + "# " + ChatColor.WHITE + "- More information available on Discord and website.");
