@@ -1,54 +1,36 @@
 package me.jacestratton;
 
-import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.block.BlockBreakEvent;
-import org.bukkit.event.block.BlockPlaceEvent;
-import org.bukkit.event.player.PlayerEvent;
-import org.bukkit.util.Vector;
+import java.util.List;
 
-public class WorldBorder implements Listener {
+import org.bukkit.Location;
+import org.bukkit.Server;
+import org.bukkit.World;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
+
+public class WorldBorder extends BukkitRunnable {
+    private List<Player> players;
+    private World world;
+    private Server server;
 
     public WorldBorder(JacesPlugin plugin) {
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        server = plugin.getServer();
+        world = server.getWorlds().get(0);
+        players = world.getPlayers();
     }
 
-    @EventHandler
-    public void playerRepel(PlayerEvent event) {
-        Player player = event.getPlayer();
-        Double x = player.getLocation().getX();
-        Double z = player.getLocation().getZ();
-        if (x> 5000) {
-            player.setVelocity(player.getVelocity().add(new Vector(-0.3, .1, 0)));
-        }
-        if (x < -5000) {
-            player.setVelocity(player.getVelocity().add(new Vector(0.3, .1, 0)));
-        }
-        if (z > 5000) {
-            player.setVelocity(player.getVelocity().add(new Vector(0, .1, -0.3)));
-        }
-        if (z < -5000) {
-            player.setVelocity(player.getVelocity().add(new Vector(0, .1, 0.3)));
+    @Override
+    public void run() {
+        server.broadcastMessage("WOW");
+        for (int i = 0; i < players.size(); i++) {
+            Player player = players.get(i);
+            Location location = player.getLocation();
+            Double x = location.getX();
+            Double z = location.getZ();
+            if (x > 5000 || z > 5000) {
+                player.teleport(new Location(world, 0, 150, 0));
+            }
         }
     }
-
-    @EventHandler
-    public void placementStop(BlockPlaceEvent event) {
-        Double x = Math.abs(event.getBlock().getLocation().getX());
-        Double z = Math.abs(event.getBlock().getLocation().getZ());
-        if (x >= 5000 || z >= 5000) {
-            event.setCancelled(true);
-        }
-    }
-
-    @EventHandler
-    public void breakStop(BlockBreakEvent event) {
-        Double x = Math.abs(event.getBlock().getLocation().getX());
-        Double z = Math.abs(event.getBlock().getLocation().getZ());
-        if (x >= 5000 || z >= 5000) {
-            event.setCancelled(true);
-        }
-    }
-
+    
 }

@@ -17,6 +17,7 @@ import net.md_5.bungee.api.ChatColor;
 public class JacesPlugin extends JavaPlugin {
     private Guide tips;
     private String message;
+    private WorldBorder border;
 
     /**
      * Initializes fields and logs the plugin initialization.
@@ -25,7 +26,8 @@ public class JacesPlugin extends JavaPlugin {
     public void onEnable() {
         getLogger().info("JacesPlugin is online!");
         tips = new Guide(this);
-        new WorldBorder(this);
+        border = new WorldBorder(this); //runTaskTimerAsynchronously(this, 0, 10);
+        border.run();
     }
 
     /**
@@ -62,16 +64,6 @@ public class JacesPlugin extends JavaPlugin {
             }
         }
         return false;
-    }
-
-    /**
-     * Prints any error from GuideBook methods to the logger.
-     * 
-     * @param e
-     *            The error to print.
-     */
-    public void printError(Exception e) {
-        getLogger().info(e.getMessage());
     }
 
     /**
@@ -189,22 +181,34 @@ public class JacesPlugin extends JavaPlugin {
      */
     private void rulePage(Player player, int page) {
         if (page == 1) {
-            player.sendMessage(ChatColor.GOLD + "Rules (Page 1/2): " + ChatColor.WHITE + "Do's and Don'ts\n" +
+            player.sendMessage(ChatColor.GOLD + "Rules (Page 1/2): " + ChatColor.YELLOW + "Do's and Don'ts\n" +
                     ChatColor.GOLD + "1 " + ChatColor.WHITE + "- No stealing / killing / griefing.\n" +
                     ChatColor.GOLD + "2 " + ChatColor.WHITE + "- No unfair mods / xray / hacks.\n" +
                     ChatColor.GOLD + "3 " + ChatColor.WHITE + "- No duplicating. Ask about other glitches.\n" +
                     ChatColor.GOLD + "4 " + ChatColor.WHITE + "- Clean up after noob poles / explosions / floating trees.\n" +
                     ChatColor.GOLD + "6 " + ChatColor.WHITE + "- Build at least 200 blocks from spawn / other players.\n" +
                     ChatColor.GOLD + "5 " + ChatColor.WHITE + "- No NSFW material / bigotry / excessive vulgarity.\n" +
-                    ChatColor.GOLD + "7 " + ChatColor.WHITE + "- Be nice and respect other players.");
+                    ChatColor.GOLD + "7 " + ChatColor.WHITE + "- Be nice and respect other players." + 
+                    ChatColor.GOLD + "8 " + ChatColor.WHITE + "- Be nice and respect other players.");
+            
         }
         if (page == 2) {
-            player.sendMessage(ChatColor.GOLD + "Rules (Page 2/2): " + ChatColor.WHITE + "Lag Sources\n" +
+            player.sendMessage(ChatColor.GOLD + "Rules (Page 2/2): " + ChatColor.YELLOW + "Lag Sources\n" +
                     ChatColor.GOLD + "1 " + ChatColor.WHITE + "- One player loading more than 300 entities at a time.\n" +
                     ChatColor.GOLD + "2 " + ChatColor.WHITE + "- Many hoppers - hopper minecart tracks cause less load.\n" +
                     ChatColor.GOLD + "3 " + ChatColor.WHITE + "- Auto mob farms with water dispensers on redstone clocks.\n" +
                     ChatColor.GOLD + "# " + ChatColor.WHITE + "- More information available on Discord and website.");
         }
+    }
+    
+    /**
+     * Prints any error from GuideBook methods to the logger.
+     * 
+     * @param e
+     *            The error to print.
+     */
+    public void printError(Exception e) {
+        getLogger().info(e.getMessage());
     }
 
 }
