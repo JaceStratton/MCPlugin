@@ -11,3 +11,9 @@ commands:
     rules:
         description: Get the list of rules.
         usage: /<command> [page]
+    addrule:
+        description: Add a rule.
+        usage: /<command> <rule>
+    removerule:
+        description: Remove a rule.
+        usage: /<command> [number]    

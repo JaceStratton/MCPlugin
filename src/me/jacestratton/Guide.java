@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -17,7 +18,7 @@ import java.util.Scanner;
 public class Guide {
     private Scanner scanner;
     private File file;
-    private String[] tips;
+    private ArrayList<String> tips;
     private int numberOfTips;
     private Random random;
     private JacesPlugin plugin;
@@ -33,7 +34,7 @@ public class Guide {
             file = new File("tips.txt");
             if (file.createNewFile()) {
                 FileWriter writer = new FileWriter(file, true);
-                writer.append("this is the first tip");
+                writer.append("This is the first tip.");
                 writer.close();
             }
         }
@@ -50,14 +51,12 @@ public class Guide {
         }
 
         this.plugin = plugin;
-        tips = new String[10000];
+        tips = new ArrayList<String>();
         numberOfTips = 0;
         random = new Random();
-        int i = 0;
         while (scanner.hasNextLine()) {
-            tips[i] = scanner.nextLine();
+            tips.add(scanner.nextLine());
             numberOfTips++;
-            i++;
         }
         scanner.close();
     }
@@ -94,18 +93,18 @@ public class Guide {
      * @return The tip to return.
      */
     public String searchTip(String keyword) {
-        Integer[] matches = new Integer[numberOfTips];
+        ArrayList<Integer> matches = new ArrayList<Integer>();
         int j = 0;
         for (int i = 0; i < numberOfTips; i++) {
-            if (tips[i].toLowerCase().contains(keyword.toLowerCase())) {
-                matches[j] = i + 1;
+            if (tips.get(i).toLowerCase().contains(keyword.toLowerCase())) {
+                matches.add(i + 1);
                 j++;
             }
         }
         if (j == 0) {
             return null;
         }
-        return printTip(matches[random.nextInt(j)]);
+        return printTip(matches.get(random.nextInt(j)));
     }
 
     /**
@@ -119,7 +118,7 @@ public class Guide {
             FileWriter writer = new FileWriter(file, true);
             writer.append("\n" + tip);
             writer.close();
-            tips[numberOfTips] = tip;
+            tips.add(tip);
             numberOfTips++;
         }
         catch (IOException e) {
@@ -142,7 +141,7 @@ public class Guide {
      * @return The tip specified by position.
      */
     private String printTip(int pos) {
-        return pos + "/" + numberOfTips + " - " + tips[pos - 1];
+        return pos + "/" + numberOfTips + " - " + tips.get(pos - 1);
     }
 
 }

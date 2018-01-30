@@ -1,5 +1,8 @@
 package me.jacestratton;
 
+import java.util.logging.Logger;
+
+import org.bukkit.Server;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -17,17 +20,22 @@ import net.md_5.bungee.api.ChatColor;
 public class JacesPlugin extends JavaPlugin {
     private Guide tips;
     private String message;
-    private WorldBorder border;
+    private Logger logger;
+    private Cooldown tipCooldown;
+    private Server server;
+    private Rules rules;
 
     /**
      * Initializes fields and logs the plugin initialization.
      */
     @Override
     public void onEnable() {
-        getLogger().info("JacesPlugin is online!");
+        server = getServer();
+        logger = getLogger();
+        logger.info("JacesPlugin is online!");
         tips = new Guide(this);
-        border = new WorldBorder(this); //runTaskTimerAsynchronously(this, 0, 10);
-        border.run();
+        rules = new Rules(this);
+        tipCooldown = new Cooldown(10);
     }
 
     /**
@@ -53,14 +61,21 @@ public class JacesPlugin extends JavaPlugin {
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
         if (sender instanceof Player) {
             Player player = (Player) sender;
-            if (cmd.getName().equalsIgnoreCase("tip")) {
+            String command = cmd.getName();
+            if (command.equalsIgnoreCase("tip")) {
                 return tip(player, args);
             }
-            if (cmd.getName().equalsIgnoreCase("addtip")) {
+            if (command.equalsIgnoreCase("addtip")) {
                 return addtip(player, args);
             }
-            if (cmd.getName().equalsIgnoreCase("rules")) {
+            if (command.equalsIgnoreCase("rules")) {
                 return rules(player, args);
+            }
+            if (command.equalsIgnoreCase("addrule")) {
+                return addRule(player, args);
+            }
+            if (command.equalsIgnoreCase("removerule")) {
+                return removeRule(player, args);
             }
         }
         return false;
@@ -78,8 +93,12 @@ public class JacesPlugin extends JavaPlugin {
      */
     public boolean tip(Player player, String[] args) {
         if (args.length == 0) {
+            if (tipCooldown.hasCooldown(player)) {
+                player.sendMessage(ChatColor.RED + "Guide: " + tipCooldown.getCooldown(player));
+                return true;
+            }
             message = tips.randomTip();
-            getServer().broadcastMessage("[Server] " + player.getName() + " got tip " + message);
+            server.broadcastMessage("[Server] " + player.getName() + " got tip " + message);
             return true;
         }
         else {
@@ -91,6 +110,7 @@ public class JacesPlugin extends JavaPlugin {
             catch (Exception e) {
                 exception = e;
             }
+
             // If there wasn't a problem getting an integer from the string, the
             // exception will be null and the player wants to search by number.
             if (exception == null) {
@@ -100,8 +120,13 @@ public class JacesPlugin extends JavaPlugin {
                             ChatColor.RED + "You must specify a number between 1 and " + tips.getNumberOfTips() + ".");
                     return false;
                 }
-                getServer().broadcastMessage("[Server] " + player.getName() + " searched for tip " + message);
+                if (tipCooldown.hasCooldown(player)) {
+                    player.sendMessage(ChatColor.RED + "Guide: " + tipCooldown.getCooldown(player));
+                    return true;
+                }
+                server.broadcastMessage("[Server] " + player.getName() + " searched for tip " + message);
             }
+
             // If an integer could not be retrieved from the string, the method
             // will return an exception and the argument is a keyword.
             else {
@@ -114,7 +139,11 @@ public class JacesPlugin extends JavaPlugin {
                     player.sendMessage(ChatColor.RED + "No matches found.");
                     return false;
                 }
-                getServer().broadcastMessage("[Server] " + player.getName() + " searched for tip " + message);
+                if (tipCooldown.hasCooldown(player)) {
+                    player.sendMessage(ChatColor.RED + "Tips: " + tipCooldown.getCooldown(player));
+                    return true;
+                }
+                server.broadcastMessage("[Server] " + player.getName() + " searched for tip " + message);
             }
             return true;
         }
@@ -131,13 +160,17 @@ public class JacesPlugin extends JavaPlugin {
      */
     public boolean addtip(Player player, String[] args) {
         if (args.length != 0) {
+            if (tipCooldown.hasCooldown(player)) {
+                player.sendMessage(ChatColor.RED + "Guide: " + tipCooldown.getCooldown(player));
+                return true;
+            }
             StringBuilder string = new StringBuilder(args[0]);
             for (int i = 1; i < args.length; i++) {
                 string.append(" " + args[i]);
             }
             tips.addTip(string.toString());
             message = tips.searchTip(tips.getNumberOfTips());
-            getServer().broadcastMessage("[Server] " + player.getName() + " added tip " + message);
+            server.broadcastMessage("[Server] " + player.getName() + " added tip " + message);
             return true;
         }
         player.sendMessage(ChatColor.RED + "You can't add an empty tip.");
@@ -145,62 +178,117 @@ public class JacesPlugin extends JavaPlugin {
     }
 
     /**
-     * Decides what page of rules to send the player.
+     * Returns page of rules.
+     * 
      * @param player
-     *            The player who requested the rules.
+     *            Player requesting rules.
      * @param args
-     *            The page number of the rules.
-     * @return True if there is no page number or page exists. False if page
-     *         does not exist or there are too many arguments.
+     *            Rule page.
+     * @return True if page exists. False if not.
      */
     public boolean rules(Player player, String[] args) {
-        if (args.length == 1) {
-            if (args[0].equals("one") || args[0].equals("1")) {
-                rulePage(player, 1);
-                return true;
+        int pageNumber = 1;
+
+        if (args.length != 0) {
+            // Try to parse int from string.
+            try {
+                pageNumber = Integer.parseInt(args[0]);
             }
-            if (args[0].equals("two") || args[0].equals("2")) {
-                rulePage(player, 2);
-                return true;
+            catch (Exception e) {
+                printError(e);
+                player.sendMessage(ChatColor.RED + "Must specify number as digit.");
+                return false;
             }
-            player.sendMessage(ChatColor.RED + "That page does not exist.");
+        }
+
+        // If no exception, run second part.
+        int numberOfPages = rules.getRules().size() / 5;
+        if (rules.getRules().size() % 5 != 0) {
+            numberOfPages++;
+        }
+        if (pageNumber > numberOfPages || pageNumber <= 0) {
+            player.sendMessage(ChatColor.RED + "Must specify digit between 1 and " + numberOfPages);
             return false;
         }
-        if (args.length == 0) {
-            rulePage(player, 1);
-            return true;
+        else {
+            player.sendMessage(ChatColor.GOLD + "Rules(" + ChatColor.YELLOW + "Page " + pageNumber + "/" + numberOfPages
+                    + ChatColor.GOLD + ")");
+            int j = 0;
+            for (int i = (pageNumber * 5) - 5; i < rules.getRules().size(); i++) {
+                if (j == 5) {
+                    return true;
+                }
+                j++;
+                player.sendMessage(
+                        ChatColor.GOLD + Integer.toString(i + 1) + ChatColor.WHITE + " - " + rules.getRules().get(i));
+            }
         }
-        player.sendMessage(ChatColor.RED + "Too many arguments.");
-        return false;
+        return true;
     }
-    
+
     /**
-     * Sends the player either page 1 or 2 of the rules.
-     * @param player The player who requested the rules.
-     * @param page The page of rules to send the player - either 1 or 2.
+     * Adds rule to list.
+     * 
+     * @param player
+     *            Player adding rule.
+     * @param args
+     *            Rule to add.
+     * @return True if args has entry. False if not.
      */
-    private void rulePage(Player player, int page) {
-        if (page == 1) {
-            player.sendMessage(ChatColor.GOLD + "Rules (Page 1/2): " + ChatColor.YELLOW + "Do's and Don'ts\n" +
-                    ChatColor.GOLD + "1 " + ChatColor.WHITE + "- No stealing / killing / griefing.\n" +
-                    ChatColor.GOLD + "2 " + ChatColor.WHITE + "- No unfair mods / xray / hacks.\n" +
-                    ChatColor.GOLD + "3 " + ChatColor.WHITE + "- No duplicating. Ask about other glitches.\n" +
-                    ChatColor.GOLD + "4 " + ChatColor.WHITE + "- Clean up after noob poles / explosions / floating trees.\n" +
-                    ChatColor.GOLD + "6 " + ChatColor.WHITE + "- Build at least 200 blocks from spawn / other players.\n" +
-                    ChatColor.GOLD + "5 " + ChatColor.WHITE + "- No NSFW material / bigotry / excessive vulgarity.\n" +
-                    ChatColor.GOLD + "7 " + ChatColor.WHITE + "- Be nice and respect other players." + 
-                    ChatColor.GOLD + "8 " + ChatColor.WHITE + "- Be nice and respect other players.");
-            
+    public boolean addRule(Player player, String[] args) {
+        if (args.length == 0) {
+            player.sendMessage(ChatColor.RED + "Must include rule.");
+            return false;
         }
-        if (page == 2) {
-            player.sendMessage(ChatColor.GOLD + "Rules (Page 2/2): " + ChatColor.YELLOW + "Lag Sources\n" +
-                    ChatColor.GOLD + "1 " + ChatColor.WHITE + "- One player loading more than 300 entities at a time.\n" +
-                    ChatColor.GOLD + "2 " + ChatColor.WHITE + "- Many hoppers - hopper minecart tracks cause less load.\n" +
-                    ChatColor.GOLD + "3 " + ChatColor.WHITE + "- Auto mob farms with water dispensers on redstone clocks.\n" +
-                    ChatColor.GOLD + "# " + ChatColor.WHITE + "- More information available on Discord and website.");
+        StringBuilder rule = new StringBuilder();
+        rule.append(args[0]);
+        for (int i = 1; i < args.length; i++) {
+            rule.append(" " + args[i]);
         }
+        rules.addRule(rule.toString());
+        player.sendMessage(ChatColor.GREEN + "Rule added.");
+        return true;
     }
-    
+
+    /**
+     * Removes rule from list.
+     * 
+     * @param player
+     *            Player removing rule.
+     * @param args
+     *            Rule to remove.
+     * @return True if rule removed. False if not.
+     */
+    public boolean removeRule(Player player, String[] args) {
+        int ruleNumber = 0;
+
+        if (args.length != 0) {
+            // Try to parse int from string.
+            try {
+                ruleNumber = Integer.parseInt(args[0]);
+            }
+            catch (Exception e) {
+                printError(e);
+                player.sendMessage(ChatColor.RED + "Must specify number as digit.");
+                return false;
+            }
+        }
+        else {
+            player.sendMessage(ChatColor.RED + "Must include digit.");
+            return false;
+        }
+
+        // If no exception, run second part.
+        if (ruleNumber <= 0 || ruleNumber > rules.getRules().size()) {
+            player.sendMessage(ChatColor.RED + "Must specify number between 1 and " + rules.getRules().size() + ".");
+            return false;
+        }
+        rules.removeRule(ruleNumber);
+        player.sendMessage(ChatColor.GREEN + "Rule removed.");
+        return true;
+
+    }
+
     /**
      * Prints any error from GuideBook methods to the logger.
      * 
@@ -208,7 +296,7 @@ public class JacesPlugin extends JavaPlugin {
      *            The error to print.
      */
     public void printError(Exception e) {
-        getLogger().info(e.getMessage());
+        logger.info(e.getMessage());
     }
 
 }
